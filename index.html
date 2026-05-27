@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Вкладки с API Эмодзи</title>
+    <style>
+        body {
+            background-color: black;
+            color: #f0f0f0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 40px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .page {
+            display: none;
+            padding: 20px;
+            width: 100%;
+            max-width: 800px;
+        }
+
+        .page.show {
+            display: block;
+        }
+
+        nav button {
+            cursor: pointer;
+            padding: 10px;
+            margin-right: 5px;
+            background: #333;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+
+        nav button:hover {
+            background: #555;
+        }
+
+        #emoji-result {
+            font-size: 3rem;
+            margin-top: 20px;
+            min-height: 50px;
+        }
+
+        #emoji-name {
+            font-style: italic;
+            color: #aaa;
+        }
+
+        .about {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 40px;
+            border-radius: 20px;
+            max-width: 400px;
+            text-align: center;
+            margin: 0 auto;
+        }
+
+        h1, h2 {
+            margin: 0;
+        }
+
+        .game-area {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 20px;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .target-box {
+            background: #111;
+            border-radius: 20px;
+            padding: 40px;
+            width: 200px;
+            height: 200px;
+            margin: 20px auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .target-letter {
+            font-size: 100px;
+            font-weight: bold;
+            font-family: monospace;
+            color: #ffcc44;
+        }
+
+        .correct-flash {
+            background: #2e7d32;
+            transform: scale(1.05);
+        }
+
+        .wrong-flash {
+            background: #c62828;
+            transform: translateX(5px);
+        }
+
+        .stats {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin: 15px 0;
+        }
+
+        .stats span {
+            background: #222;
+            padding: 8px 18px;
+            border-radius: 20px;
+        }
+
+        .timer {
+            font-size: 2rem;
+            font-weight: bold;
+            margin: 10px 0;
+            color: #ffaa44;
+        }
+
+        button {
+            background: #333;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 20px;
+            color: white;
+            cursor: pointer;
+            margin: 5px;
+        }
+
+        button:hover {
+            background: #555;
+        }
+
+        .message {
+            margin-top: 15px;
+            min-height: 40px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <nav>
+            <button data-group=".page" data-target="page-1">Обо мне</button>
+            <button data-group=".page" data-target="page-2">API Эмодзи</button>
+            <button data-group=".page" data-target="page-3">Игра</button>
+        </nav>        
+    </header>
+
+    <main>
+        <div class="page show" id="page-1">
+            <div class="about">
+                <h1>Обо мне</h1>
+                <h2>Комаров Виктор Петрович 18 годиков</h2>
+                <p>Эт я</p>
+                <p>🤠🤠🤠</p>
+            </div>
+        </div>
+
+        <div class="page" id="page-2">
+            <h1>Работа с API</h1>
+            <p>Нажми кнопку, чтобы получить случайный эмодзи:</p>
+            <button id="get-emoji">Получить эмодзи</button>
+            <div id="emoji-result"></div>
+            <div id="emoji-name"></div>
+        </div>
+
+        <div class="page" id="page-3">
+            <div class="game-area">
+                <h1>Клавиатурная игра</h1>
+                <p>Нажимай на клавиши, совпадающие с буквой/цифрой</p>
+                
+                <div class="timer" id="timer">20</div>
+                
+                <div class="target-box" id="targetBox">
+                    <div class="target-letter" id="targetLetter">A</div>
+                </div>
+
+                <div class="stats">
+                    <span>Правильно: <span id="score">0</span></span>
+                    <span>Ошибки: <span id="errors">0</span></span>
+                </div>
+
+                <div>
+                    <button id="skipBtn">Пропустить</button>
+                    <button id="resetBtn">Сбросить</button>
+                    <button id="startBtn">Начать заново</button>
+                </div>
+
+                <div class="message" id="message"></div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        document.querySelectorAll('button[data-group]').forEach(button => {
+            button.onclick = () => {
+                const pages = document.querySelectorAll(button.dataset.group);
+                pages.forEach(page => {
+                    page.classList.toggle('show', page.id === button.dataset.target);
+                });
+            };
+        });
+
+        const emojiBtn = document.getElementById('get-emoji');
+        const emojiDisplay = document.getElementById('emoji-result');
+        const emojiName = document.getElementById('emoji-name');
+
+        emojiBtn.onclick = () => {
+            emojiDisplay.textContent = '⌛';
+            fetch('https://emojihub.yurace.pro/api/random')
+                .then(res => res.json())
+                .then(data => {
+                    emojiDisplay.innerHTML = data.htmlCode[0];
+                    emojiName.textContent = `Название: ${data.name}`;
+                })
+                .catch(() => {
+                    emojiDisplay.textContent = '❌';
+                    emojiName.textContent = 'Ошибка загрузки';
+                });
+        };
+
+        const symbols = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'.split('');
+        
+        let currentTarget = 'A';
+        let score = 0;
+        let errors = 0;
+        let timeLeft = 20;
+        let gameActive = false;
+        let timerInterval = null;
+        
+        const targetBox = document.getElementById('targetBox');
+        const targetLetterSpan = document.getElementById('targetLetter');
+        const scoreSpan = document.getElementById('score');
+        const errorsSpan = document.getElementById('errors');
+        const timerSpan = document.getElementById('timer');
+        const messageSpan = document.getElementById('message');
+        const skipBtnGame = document.getElementById('skipBtn');
+        const resetBtnGame = document.getElementById('resetBtn');
+        const startBtn = document.getElementById('startBtn');
+
+        function getRandomSymbol() {
+            return symbols[Math.floor(Math.random() * symbols.length)];
+        }
+
+        function updateTarget() {
+            targetLetterSpan.textContent = currentTarget;
+        }
+
+        function updateUI() {
+            scoreSpan.textContent = score;
+            errorsSpan.textContent = errors;
+            timerSpan.textContent = timeLeft;
+        }
+
+        function showMessage(text, isGood) {
+            messageSpan.textContent = text;
+            messageSpan.style.color = isGood ? '#8bc34a' : '#ff8a80';
+            setTimeout(() => {
+                if (messageSpan.textContent === text) {
+                    messageSpan.textContent = '';
+                }
+            }, 800);
+        }
+
+        function animateCorrect() {
+            targetBox.classList.add('correct-flash');
+            setTimeout(() => targetBox.classList.remove('correct-flash'), 200);
+        }
+
+        function animateWrong() {
+            targetBox.classList.add('wrong-flash');
+            setTimeout(() => targetBox.classList.remove('wrong-flash'), 300);
+        }
+
+        function endGame() {
+            gameActive = false;
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
+            showMessage(`ИГРА ОКОНЧЕНА! Результат: ${score} правильных, ${errors} ошибок`, false);
+        }
+
+        function startTimer() {
+            if (timerInterval) clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                if (gameActive && timeLeft > 0) {
+                    timeLeft--;
+                    timerSpan.textContent = timeLeft;
+                    if (timeLeft === 0) {
+                        endGame();
+                    }
+                }
+            }, 1000);
+        }
+
+        function startGame() {
+            if (timerInterval) clearInterval(timerInterval);
+            score = 0;
+            errors = 0;
+            timeLeft = 20;
+            gameActive = true;
+            currentTarget = getRandomSymbol();
+            updateTarget();
+            updateUI();
+            startTimer();
+            showMessage('Игра началась! Нажимай клавиши!', true);
+        }
+
+        function resetStats() {
+            if (!gameActive) {
+                score = 0;
+                errors = 0;
+                updateUI();
+                showMessage('Статистика сброшена', true);
+            } else {
+                score = 0;
+                errors = 0;
+                updateUI();
+                showMessage('Счёт сброшен, игра продолжается', true);
+            }
+        }
+
+        function skipSymbol() {
+            if (!gameActive) {
+                showMessage('Игра не активна, нажми "Начать заново"', false);
+                return;
+            }
+            currentTarget = getRandomSymbol();
+            updateTarget();
+            showMessage(`Пропуск → новая цель: ${currentTarget}`, true);
+        }
+
+        function correctAnswer(key) {
+            score++;
+            updateUI();
+            animateCorrect();
+            showMessage(`Верно! +1 (${key})`, true);
+            currentTarget = getRandomSymbol();
+            updateTarget();
+        }
+
+        function wrongAnswer(key) {
+            errors++;
+            updateUI();
+            animateWrong();
+            showMessage(`Ошибка! Вы нажали "${key}", нужно "${currentTarget}"`, false);
+        }
+
+        function onKeyPress(event) {
+            if (!gameActive) return;
+            
+            let key = event.key;
+            if (key.length !== 1) return;
+            
+            let normalized = /[a-zA-Z]/.test(key) ? key.toUpperCase() : key;
+            
+            if (!symbols.includes(normalized)) return;
+            
+            if (normalized === currentTarget) {
+                correctAnswer(normalized);
+            } else {
+                wrongAnswer(normalized);
+            }
+        }
+
+        window.addEventListener('keydown', onKeyPress);
+
+        skipBtnGame.onclick = skipSymbol;
+        resetBtnGame.onclick = resetStats;
+        startBtn.onclick = startGame;
+
+        gameActive = false;
+        updateTarget();
+        updateUI();
+    </script>
+</body>
+</html>
